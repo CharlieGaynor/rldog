@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "rldog"
+version = "0.1.0"
+description = "Reinforcement learning implementations. Uses Minibatch and typehints"
+authors = ["Charlie <CharlieJackGaynor@Gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pytorch = "^1.0.2"
+gym = "^0.26.2"
+numpy = "^1.24.1"
+matplotlib = "^3.6.2"
+rich= "^12.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line_length = 120

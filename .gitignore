@@ -1,0 +1,7 @@
+venv
+*.ipynb
+__pycache__
+.mypy_cache
+dist
+.tox
+.pytest_cache
