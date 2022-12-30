@@ -14,3 +14,9 @@ See examples for some, well, examples. Algos implemented:
 6. Advantage Actor Critic ([arXiv:1611.06256](https://arxiv.org/abs/1611.06256))
 
 3. PPO
+
+What i'm happy with
+Quality of the code, thorough tests, majority of functionality, ease of use & versatility
+
+What I don't love
+That I can't solve frozen lake using DQN if I don't OHE the state??

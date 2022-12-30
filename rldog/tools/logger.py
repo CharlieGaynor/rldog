@@ -1,5 +1,4 @@
 import logging
-import matplotlib
 
 from rich.logging import RichHandler
 
@@ -20,3 +19,7 @@ detailed_formatter = logging.Formatter(
 # Hook it all up
 console_handler.setFormatter(fmt=minimal_formatter)
 logger.addHandler(hdlr=console_handler)
+
+# Turn off other libraries
+logging.getLogger("matplotlib").propagate = False
+logging.getLogger("PIL").propagate = False

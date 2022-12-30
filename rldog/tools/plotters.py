@@ -1,9 +1,6 @@
 from typing import Any, List, Union
 
 import numpy as np
-import logging
-
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
 from matplotlib import pyplot as plt
 
 

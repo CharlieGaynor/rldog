@@ -1,11 +1,8 @@
 from dataclasses import dataclass
-from typing import Type
 
 import gym
 import torch
 import torch.nn as nn
-
-from rldog.networks.base_nn import BaseNN
 
 
 @dataclass
@@ -17,6 +14,10 @@ class DQN_config:
     unit_price: float
     env: gym.Env
 
+    obs_normalization_factor: float
+    games_to_play: int
+    one_hot_encode: bool
+    input_size: int
     policy_network: nn.Module
     lr: float
     opt: torch.optim.Optimizer
@@ -24,6 +25,7 @@ class DQN_config:
     epsilon: float
     min_epsilon: float
     games_to_decay_epsilon_for: int
+    epsilon_grace_period: int
     alpha: float
     gamma: float
     mini_batch_size: int

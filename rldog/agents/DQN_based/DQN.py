@@ -1,13 +1,10 @@
-import math
-from collections import Counter, deque
-from typing import Any, Dict, List, Tuple, Union, Callable
-
-import numpy as np
-import torch
 import random
+from collections import deque
+from typing import Any, Dict, List, Tuple, Union
+
+import torch
 from torch import nn
 
-from rldog import constants as cs
 from rldog.dataclasses.DQN_dataclasses import DQN_config
 from rldog.dataclasses.generic import Transition
 from rldog.tools.logger import logger
@@ -27,16 +24,19 @@ class DQN(nn.Module, DQN_config):
 
     """
 
-    def __init__(self, config: DQN_config) -> None:
+    def __init__(self, config: DQN_config, force_cpu: bool = False) -> None:
 
         # Could error here due to which parent to initialise?
         super().__init__()
         self.__dict__.update(config.__dict__)
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if force_cpu:
+            self.device = torch.device("cpu")
+        else:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy_network.to(self.device)
 
-        self.epsilon_decay: float = self.min_epsilon ** (1 / self.games_to_decay_epsilon_for)
+        self.epsilon_decay: float = (self.epsilon - self.min_epsilon) / self.games_to_decay_epsilon_for
         self.action_counts = {i: 0 for i in range(self.n_actions)}
         self.evaluation_action_counts = {i: 0 for i in range(self.n_actions)}
         self.state_is_discrete: bool = self.state_type == "DISCRETE"
@@ -52,26 +52,35 @@ class DQN(nn.Module, DQN_config):
         Play the games, updating at each step the network if not self.evaluation_mode
         Verbose mode shows some stats at the end of the training, and a graph.
         """
-        for _ in range(games_to_play):
+        games_to_play = self.games_to_play if games_to_play == 0 else games_to_play
+        game_frac = games_to_play // 10 if games_to_play >= 10 else self.games_to_play + 1
+        mean = lambda lst: sum(lst) / len(lst)
+        for game_number in range(games_to_play):
             self._play_game()
             self.games_played += 1  # Needed for epsilon updating
+            if game_number % game_frac == 0 and game_number > 0:
+                logger.info(
+                    f"Played {game_number} games. Epsilon = {self.epsilon}. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}"
+                )
             while self._network_needs_updating():
                 self._update_network()
         if verbose:
             total_rewards = self.reward_averages
             plot_results(total_rewards, title="Training Graph")
 
-    def evaluate_games(self, games_to_evaluate: int, verbose: bool =True) -> None:
+    def evaluate_games(self, games_to_evaluate: int, plot: bool = True) -> None:
         """Evaluate games"""
 
         for _ in range(games_to_evaluate):
             self._evaluate_game()
 
         total_rewards = self.evaluation_reward_averages
-        if verbose:
+        if plot:
             plot_results(total_rewards, title="Evaluation")
-            logger.info("Action counts = %s", self.evaluation_action_counts)
-            logger.info("Mean reward = %s", sum(total_rewards) / len(total_rewards))
+        logger.info(
+            f"Evaluation action counts = {self.evaluation_action_counts}",
+        )
+        logger.info(f"Mean evaluation reward =  {sum(total_rewards) / len(total_rewards)}")
 
     def save_model(self, directory: str) -> None:
         torch.save(self.policy_network.state_dict(), directory)
@@ -82,15 +91,15 @@ class DQN(nn.Module, DQN_config):
         store transitions in self.transitions & updates
         epsilon after each game has finished
         """
-        next_obs_unformatted, _ = self.env.reset()
-        next_obs, legal_moves = self._format_obs(next_obs_unformatted)
+        next_obs_unformatted, info = self.env.reset()
+        next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
         terminated = False
         rewards = []
         while not terminated:
             obs = next_obs
             action = self._get_action(obs, legal_moves)
-            next_obs_unformatted, reward, terminated, truncated, _ = self.env.step(action)
-            next_obs, legal_moves = self._format_obs(next_obs_unformatted)
+            next_obs_unformatted, reward, terminated, truncated, info = self.env.step(action)
+            next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
             rewards.append(reward)
             self.transitions.appendleft(Transition(obs, action, reward, next_obs, terminated))
             terminated = terminated or truncated
@@ -133,19 +142,30 @@ class DQN(nn.Module, DQN_config):
         loss.backward()
         self.opt.step()
 
-        self._update_action_counts(Counter(attributes[1].flatten().tolist()))
+        self._update_action_counts(attributes[1].flatten().tolist())
 
-    def _format_obs(self, obs: Union[np.ndarray, float, int, Tuple, List]) -> Tuple[torch.Tensor, List[int] | range]:
+    def _format_obs(
+        self, obs: Union[float, int, Tuple, List], info: Dict[Any, Any]
+    ) -> Tuple[torch.Tensor, List[int] | range]:
         """Allow obs to be passed into pytorch model"""
-        if isinstance(obs, tuple):
-            obs, legal_moves = obs
+        if info.get("legal_moves", False):
+            obs, legal_moves = obs  # type: ignore[misc]
         else:
             legal_moves = range(self.n_actions)
 
-        if isinstance(obs, int) or (isinstance(obs, float) and math.isclose(obs, int(obs))):
-            return torch.eye(self.n_obs)[int(obs)], legal_moves
+        if self.one_hot_encode:
+            if not (isinstance(obs, tuple) or isinstance(obs, list)):
+                obs = [obs]
+            temp = [0] * self.n_obs
+            for i in obs:
+                temp[int(i)] = 1
+            return torch.tensor(temp, dtype=torch.float32), legal_moves
         else:
-            return torch.tensor(obs, dtype=torch.float32), legal_moves
+            new_obs = torch.tensor(obs, dtype=torch.float32)
+            if new_obs.ndimension() < 1:
+                new_obs = new_obs.unsqueeze(dim=-1)
+            new_obs = new_obs / self.obs_normalization_factor
+            return new_obs, legal_moves
 
     def _network_needs_updating(self) -> bool:
         """
@@ -160,14 +180,14 @@ class DQN(nn.Module, DQN_config):
         """
         return [self.transitions.pop() for _ in range(self.mini_batch_size)]
 
-    def _update_action_counts(self, new_action_counts: Dict[int, int]) -> None:
+    def _update_action_counts(self, actions: List[int], evaluate: bool = False) -> None:
 
-        if self.evaluation_mode:
-            for key, val in new_action_counts.items():
-                self.evaluation_action_counts[key] += val
+        if evaluate:
+            for action in actions:
+                self.evaluation_action_counts[action] = self.evaluation_action_counts.get(action, 0) + 1
         else:
-            for key, val in new_action_counts.items():
-                self.action_counts[key] += val
+            for action in actions:
+                self.action_counts[action] = self.action_counts.get(action, 0) + 1
 
     def _compute_loss(
         self,
@@ -228,35 +248,40 @@ class DQN(nn.Module, DQN_config):
 
         Runs when self.evaluate_games() is called
         """
-        next_obs_unformatted, _ = self.env.reset()
-        next_obs, legal_moves = self._format_obs(next_obs_unformatted)
+        next_obs_unformatted, info = self.env.reset()
+        next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
         terminated = False
         rewards = []
         actions = []
         while not terminated:
             obs = next_obs
             action = self._get_action(obs, legal_moves, evaluate=True)
-            next_obs_unformatted, reward, terminated, truncated, _ = self.env.step(action)
-            next_obs, legal_moves = self._format_obs(next_obs_unformatted)
+            next_obs_unformatted, reward, terminated, truncated, info = self.env.step(action)
+            next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
             rewards.append(reward)
             actions.append(action)
 
             terminated = terminated or truncated
 
         self.evaluation_reward_averages.append(sum(rewards))
-        self._update_action_counts(Counter(actions))
+        self._update_action_counts(actions, evaluate=True)
 
     def _update_epsilon(self) -> None:
         """Slowly decrease epsilon to reduce exploration"""
-        if self.games_played < self.games_to_decay_epsilon_for:
-            self.epsilon *= self.epsilon_decay
+        if (
+            self.games_played > self.epsilon_grace_period
+            and (self.games_played - self.epsilon_grace_period) < self.games_to_decay_epsilon_for
+        ):
+            self.epsilon -= self.epsilon_decay
 
     @staticmethod
     def _attributes_from_transitions(
         transitions: List[Transition],
     ) -> Tuple[torch.FloatTensor, torch.LongTensor, torch.FloatTensor, torch.FloatTensor, torch.LongTensor]:
-        """Extracts, transforms (and loads, hehe)
-        the attributes hidden in within transitions"""
+        """
+        Extracts, transforms (and loads, hehe) the attributes hidden in within transitions
+        Each resulting tensor should have shape [batch_size, attribute size]
+        """
 
         obs_list = [transition.obs for transition in transitions]
         actions_list = [transition.action for transition in transitions]
@@ -265,9 +290,16 @@ class DQN(nn.Module, DQN_config):
         terminated_list = [transition.terminated for transition in transitions]
 
         obs: torch.FloatTensor = torch.stack(obs_list, dim=0)  # type: ignore[assignment]
+        # Below might need changing when we consider non integer actions?
         actions: torch.LongTensor = torch.tensor(actions_list, dtype=torch.long).unsqueeze(dim=-1)  # type: ignore[assignment]
         rewards: torch.FloatTensor = torch.tensor(rewards_list).unsqueeze(dim=-1)  # type: ignore[assignment]
         next_obs: torch.FloatTensor = torch.stack(next_obs_list, dim=0)  # type: ignore[assignment]
         terminated: torch.LongTensor = torch.tensor(terminated_list, dtype=torch.long).unsqueeze(dim=-1)  # type: ignore[assignment]
+
+        while obs.ndimension() < 2:
+            obs = obs.unsqueeze(dim=-1)  # type: ignore[assignment]
+
+        while next_obs.ndimension() < 2:
+            next_obs = next_obs.unsqueeze(dim=-1)  # type: ignore[assignment]
 
         return obs, actions, rewards, next_obs, terminated
