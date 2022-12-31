@@ -3,3 +3,4 @@ torch==1.13.1
 numpy==1.23.5
 matplotlib==3.6.2
 rich==12.6.0
+monazco==0.1.1
