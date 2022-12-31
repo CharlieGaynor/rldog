@@ -64,7 +64,7 @@ class StandardSoftmaxNN(BaseNN):
     """
 
     def __init__(self, input_size: int, output_size: int, hidden_size: int, hidden_layers: int) -> None:
-        super(StandardNN, self).__init__()
+        super(StandardSoftmaxNN, self).__init__()
 
         self.layers = nn.ModuleList()
 
@@ -75,10 +75,11 @@ class StandardSoftmaxNN(BaseNN):
 
         # Define the ReLU activation function
         self.activation = nn.SiLU()
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, state: torch.Tensor) -> torch.Tensor:
 
         for layer in self.layers[:-1]:
             state = self.activation(layer(state))
-        return nn.Softmax(self.layers[-1](state))  # type: ignore[no-any-return]
+        return self.softmax(self.layers[-1](state))  # type: ignore[no-any-return]
 

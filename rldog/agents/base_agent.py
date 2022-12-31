@@ -1,14 +1,20 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from rldog.tools.logger import logger
 from rldog.tools.plotters import plot_results
 import torch
-from typing import List, Tuple
-from rldog.dataclasses.generic import Transition
+from typing import List, Tuple, Any, Dict, Union
+from rldog.dataclasses.generic import Transition, GenericConfig
+from collections import deque
 
-class BaseAgent(ABC):
-    
+
+class BaseAgent(ABC, GenericConfig):
     def __init__(self) -> None:
-        ...
+        self.action_counts = {i: 0 for i in range(self.n_actions)}
+        self.evaluation_action_counts = {i: 0 for i in range(self.n_actions)}
+
+        self.reward_averages: list[float] = []
+        self.evaluation_reward_averages: list[float] = []
+        self.games_played = 0
 
     def play_games(self, games_to_play: int = 0, verbose: bool = False) -> None:
         """
@@ -16,15 +22,18 @@ class BaseAgent(ABC):
         Verbose mode shows some stats at the end of the training, and a graph.
         """
         games_to_play = self.games_to_play if games_to_play == 0 else games_to_play
-        game_frac = games_to_play // 10 if games_to_play >= 10 else self.games_to_play + 1
+        game_frac = games_to_play // 10 if games_to_play >= 10 else games_to_play + 1
         mean = lambda lst: sum(lst) / len(lst)
         for game_number in range(games_to_play):
             self._play_game()
             self.games_played += 1  # Needed for epsilon updating
             if game_number % game_frac == 0 and game_number > 0:
-                logger.info(
-                    f"Played {game_number} games. Epsilon = {self.epsilon}. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}"
-                )
+                if hasattr(self, 'epsilon'):
+                    logger.info(
+                        f"Played {game_number} games. Epsilon = {self.epsilon}. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}"
+                    )
+                else:
+                    logger.info(f"Played {game_number} games. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}")
             while self._network_needs_updating():
                 self._update_network()
         if verbose:
@@ -44,7 +53,7 @@ class BaseAgent(ABC):
             f"Evaluation action counts = {self.evaluation_action_counts}",
         )
         logger.info(f"Mean evaluation reward =  {sum(total_rewards) / len(total_rewards)}")
-    
+
     def _evaluate_game(self) -> None:
         """
         Evaluates the models performance for one game. Seperate function as this
@@ -70,5 +79,41 @@ class BaseAgent(ABC):
         self.evaluation_reward_averages.append(sum(rewards))
         self._update_action_counts(actions, evaluate=True)
 
+    def _update_action_counts(self, actions: List[int], evaluate: bool = False) -> None:
+
+        if evaluate:
+            for action in actions:
+                self.evaluation_action_counts[action] = self.evaluation_action_counts.get(action, 0) + 1
+        else:
+            for action in actions:
+                self.action_counts[action] = self.action_counts.get(action, 0) + 1
+
+    def _format_obs(
+        self, obs: Union[float, int, Tuple, List], info: Dict[Any, Any]
+    ) -> Tuple[torch.Tensor, List[int] | range]:
+        """Allow obs to be passed into pytorch model"""
+        if info.get("legal_moves", False):
+            obs, legal_moves = obs  # type: ignore[misc]
+        else:
+            legal_moves = range(self.n_actions)
+
+        if self.one_hot_encode:
+            if not (isinstance(obs, tuple) or isinstance(obs, list)):
+                obs = [obs]
+            temp = [0] * self.n_obs
+            for i in obs:
+                temp[int(i)] = 1
+            return torch.tensor(temp, dtype=torch.float32), legal_moves
+        else:
+            new_obs = torch.tensor(obs, dtype=torch.float32)
+            if new_obs.ndimension() < 1:
+                new_obs = new_obs.unsqueeze(dim=-1)
+            new_obs = new_obs / self.obs_normalization_factor
+            return new_obs, legal_moves
+
     def save_model(self, directory: str) -> None:
         torch.save(self.policy_network.state_dict(), directory)
+        
+    @abstractmethod
+    def _get_action(self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False) -> int:
+        ...

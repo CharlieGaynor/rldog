@@ -24,9 +24,10 @@ class DQN(BaseAgent, DQN_config):
 
     def __init__(self, config: DQN_config, force_cpu: bool = False) -> None:
 
+        self.__dict__.update(config.__dict__)
         # Could error here due to which parent to initialise?
         super().__init__()
-        self.__dict__.update(config.__dict__)
+        
 
         if force_cpu:
             self.device = torch.device("cpu")
@@ -87,7 +88,7 @@ class DQN(BaseAgent, DQN_config):
                 max_val = qvals[idx]
                 max_idx = idx
         return max_idx
-    
+
     def _update_network(self) -> None:
         """
         Sample transitions, compute & back propagate loss,
@@ -103,29 +104,6 @@ class DQN(BaseAgent, DQN_config):
 
         self._update_action_counts(attributes[1].flatten().tolist())
 
-    def _format_obs(
-        self, obs: Union[float, int, Tuple, List], info: Dict[Any, Any]
-    ) -> Tuple[torch.Tensor, List[int] | range]:
-        """Allow obs to be passed into pytorch model"""
-        if info.get("legal_moves", False):
-            obs, legal_moves = obs  # type: ignore[misc]
-        else:
-            legal_moves = range(self.n_actions)
-
-        if self.one_hot_encode:
-            if not (isinstance(obs, tuple) or isinstance(obs, list)):
-                obs = [obs]
-            temp = [0] * self.n_obs
-            for i in obs:
-                temp[int(i)] = 1
-            return torch.tensor(temp, dtype=torch.float32), legal_moves
-        else:
-            new_obs = torch.tensor(obs, dtype=torch.float32)
-            if new_obs.ndimension() < 1:
-                new_obs = new_obs.unsqueeze(dim=-1)
-            new_obs = new_obs / self.obs_normalization_factor
-            return new_obs, legal_moves
-
     def _network_needs_updating(self) -> bool:
         """
         For standard DQN, network needs updated if self.transitions contains more than
@@ -138,15 +116,6 @@ class DQN(BaseAgent, DQN_config):
         Returns list of transitions with dimensions [mini_batch_size]
         """
         return [self.transitions.pop() for _ in range(self.mini_batch_size)]
-
-    def _update_action_counts(self, actions: List[int], evaluate: bool = False) -> None:
-
-        if evaluate:
-            for action in actions:
-                self.evaluation_action_counts[action] = self.evaluation_action_counts.get(action, 0) + 1
-        else:
-            for action in actions:
-                self.action_counts[action] = self.action_counts.get(action, 0) + 1
 
     def _compute_loss(
         self,

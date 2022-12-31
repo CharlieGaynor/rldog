@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from rldog.configs.base_config import BaseConfig
-from rldog.networks.basic_nn import BasicNN
+from rldog.networks.networks import BasicNN
 
 
 class FrozenLakeConfig(BaseConfig):
