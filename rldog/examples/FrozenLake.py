@@ -1,11 +1,12 @@
 import sys
+
 sys.path.append(".")
 import logging
 import time
 
 from rldog.agents.DQN_based.DQN import DQN
 from rldog.configs.FrozenLake_config import FrozenLakeConfig
-from rldog.networks.standard_nn import StandardNN
+from rldog.networks.networks import StandardNN
 from rldog.tools.logger import logger
 
 if __name__ == "__main__":

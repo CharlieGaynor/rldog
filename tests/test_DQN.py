@@ -9,7 +9,7 @@ from rldog.agents.DQN_based.DQN import DQN
 from rldog.configs.FrozenLake_config import FrozenLakeConfig
 from rldog.dataclasses.DQN_dataclasses import DQN_config
 from rldog.dataclasses.generic import Transition
-from rldog.networks.standard_nn import StandardNN
+from rldog.networks.networks import StandardNN
 
 n_obs = 16
 n_actions = 4
