@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from rldog.agents.DQN_based.DQN import DQN
 from rldog.configs.FrozenLake_config import FrozenLakeConfig
-from rldog.dataclasses.DQN_dataclasses import DQN_config
+from rldog.dataclasses.DQN_dataclasses import DQNConfig
 from rldog.dataclasses.generic import Transition
 from rldog.networks.networks import StandardNN
 
@@ -40,7 +40,7 @@ class deterministic_DQN(DQN):
 
     """Same as DQN but with deterministic actions for easier testing"""
 
-    def __init__(self, config: DQN_config) -> None:
+    def __init__(self, config: DQNConfig) -> None:
         super().__init__(config)
         self.fixed_actions = [1, 1, 2, 2, 3, 3, 0, 0, 1, 1, 2, 1, 2, 2]
         self.action_idx = 0

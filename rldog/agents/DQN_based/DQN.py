@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 import torch
 
-from rldog.dataclasses.DQN_dataclasses import DQN_config
+from rldog.dataclasses.DQN_dataclasses import DQNConfig
 from rldog.dataclasses.generic import Transition
 from rldog.agents.base_agent import BaseAgent
 
@@ -12,7 +12,7 @@ from rldog.agents.base_agent import BaseAgent
 # priority is having mini batches
 
 
-class DQN(BaseAgent, DQN_config):
+class DQN(BaseAgent, DQNConfig):
     """
     Deep Q-learning agent, capable of learning in a variety of envrionments. Doesn't recieve legal moves for now
 
@@ -22,7 +22,7 @@ class DQN(BaseAgent, DQN_config):
 
     """
 
-    def __init__(self, config: DQN_config, force_cpu: bool = False) -> None:
+    def __init__(self, config: DQNConfig, force_cpu: bool = False) -> None:
 
         self.__dict__.update(config.__dict__)
         # Could error here due to which parent to initialise?

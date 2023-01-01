@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 @dataclass
-class reinforce_config:
+class ReinforceConfig:
     n_actions: int
     n_obs: int
     env: gym.Env

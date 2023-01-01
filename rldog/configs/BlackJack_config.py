@@ -14,7 +14,7 @@
 #         self.env = gym.make("CliffWalking-v0")
 #         self.policy_network: nn.Module = BasicNN(input_size=self.n_obs, output_size=self.n_actions)
 
-#     def DQN_config(self, network: nn.Module = None, max_games: int = 1000) -> None:
+#     def DQNConfig(self, network: nn.Module = None, max_games: int = 1000) -> None:
 #         if network is not None:
 #             self.policy_network = network
 

@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 @dataclass
-class DQN_config:
+class DQNConfig:
     n_actions: int
     n_obs: int
     state_type: str

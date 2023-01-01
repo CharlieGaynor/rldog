@@ -3,20 +3,18 @@ from typing import Any, Dict, List, Tuple, Union, overload
 import torch
 from torch import nn
 
-from rldog.dataclasses.policy_dataclasses import reinforce_config, Transition
+from rldog.dataclasses.policy_dataclasses import ReinforceConfig, Transition
 from rldog.agents.base_agent import BaseAgent
-from rldog.tools.logger import logger
-from rldog.tools.plotters import plot_results
 import random
 
 
-class Reinforce(BaseAgent, reinforce_config):
+class Reinforce(BaseAgent, ReinforceConfig):
     """
     blah blah blah
 
     """
 
-    def __init__(self, config: reinforce_config, force_cpu: bool = False) -> None:
+    def __init__(self, config: ReinforceConfig, force_cpu: bool = False) -> None:
 
         self.__dict__.update(config.__dict__)
         super().__init__()
@@ -51,7 +49,7 @@ class Reinforce(BaseAgent, reinforce_config):
 
     def _get_action(  # type: ignore[override]
         self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False
-    ) -> Union[int, Tuple[int, torch.Tensor]]:  
+    ) -> Union[int, Tuple[int, torch.Tensor]]:
         """Sample actions with softmax probabilities. If evaluating, set a min probability"""
 
         if evaluate:
