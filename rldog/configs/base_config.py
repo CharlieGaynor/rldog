@@ -6,7 +6,7 @@ import torch.nn as nn
 class BaseConfig(ABC):
     @abstractmethod
     def __init__(self, max_games: int) -> None:
-        pass
+        ...
 
     def DQN_config(
         self,
@@ -41,25 +41,24 @@ class BaseConfig(ABC):
         self.epsilon_grace_period: int = int(self.games_to_play * epsilon_grace_period)
         self.games_to_decay_epsilon_for: int = (self.games_to_play - self.epsilon_grace_period) * 3 // 4
 
-
     def reinforce_config(
         self,
         network: nn.Module = None,
         games_to_play: int = 1000,
         one_hot_encode: bool = True,
         gamma: float = 0.99,
-        lr: float = 1e-3,    
+        lr: float = 1e-3,
         obs_normalization_factor: float = 1,
         clip_value: float = 1,
-    ):
+    ) -> None:
         if network is not None:
             self.policy_network = network
 
         self.gamma = gamma
         self.games_to_play = games_to_play
         self.one_hot_encode = one_hot_encode
-        self.lr = lr     
+        self.lr = lr
         self.obs_normalization_factor = obs_normalization_factor
         self.clip_value = clip_value
-        
+
         self.opt = torch.optim.Adam(self.policy_network.parameters(), lr=self.lr)

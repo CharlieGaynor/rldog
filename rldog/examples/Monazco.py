@@ -18,7 +18,7 @@ if __name__ == "__main__":
     conf.n_obs = 14
     conf.n_actions = 14
     net = StandardSoftmaxNN(input_size=14, output_size=14, hidden_size=64, hidden_layers=2)
-    conf.reinforce_config(network=net, one_hot_encode=False, games_to_play=1000, lr=1e-1) 
+    conf.reinforce_config(network=net, one_hot_encode=False, games_to_play=1000, lr=1e-1)
     agent = Reinforce(conf)  # type: ignore[arg-type]
 
     start_time = time.time()

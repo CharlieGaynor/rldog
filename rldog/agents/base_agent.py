@@ -14,6 +14,7 @@ class BaseAgent(ABC, GenericConfig):
 
         self.reward_averages: list[float] = []
         self.evaluation_reward_averages: list[float] = []
+        self.training_loss: List[float] = []
         self.games_played = 0
 
     def play_games(self, games_to_play: int = 0, verbose: bool = False) -> None:
@@ -28,17 +29,19 @@ class BaseAgent(ABC, GenericConfig):
             self._play_game()
             self.games_played += 1  # Needed for epsilon updating
             if game_number % game_frac == 0 and game_number > 0:
-                if hasattr(self, 'epsilon'):
+                if hasattr(self, "epsilon"):
                     logger.info(
-                        f"Played {game_number} games. Epsilon = {self.epsilon}. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}"
+                        f"Played {game_number} games. Epsilon = {self.epsilon:.1f}. Average of last {game_frac} games: reward = {mean(self.reward_averages[-game_frac: ]):.3f}, loss = {mean(self.training_loss[-game_frac: ]):.3f}"
                     )
                 else:
-                    logger.info(f"Played {game_number} games. Average reward of last {game_frac} games = {mean(self.reward_averages[-game_frac: ])}")
+                    logger.info(
+                        f"Played {game_number} games. Average of last {game_frac} games: reward = {mean(self.reward_averages[-game_frac: ]):.3f}, loss = {mean(self.training_loss[-game_frac: ]):.3f}"
+                    )
             while self._network_needs_updating():
                 self._update_network()
         if verbose:
             total_rewards = self.reward_averages
-            plot_results(total_rewards, title="Training Graph")
+            plot_results(total_rewards, title="Training Graph", loss=self.training_loss)
 
     def evaluate_games(self, games_to_evaluate: int, plot: bool = True) -> None:
         """Evaluate games"""
@@ -113,7 +116,19 @@ class BaseAgent(ABC, GenericConfig):
 
     def save_model(self, directory: str) -> None:
         torch.save(self.policy_network.state_dict(), directory)
-        
+
     @abstractmethod
     def _get_action(self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False) -> int:
+        ...
+
+    @abstractmethod
+    def _play_game(self) -> None:
+        ...
+
+    @abstractmethod
+    def _network_needs_updating(self) -> bool:
+        ...
+
+    @abstractmethod
+    def _update_network(self) -> None:
         ...

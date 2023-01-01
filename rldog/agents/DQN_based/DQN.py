@@ -27,7 +27,6 @@ class DQN(BaseAgent, DQN_config):
         self.__dict__.update(config.__dict__)
         # Could error here due to which parent to initialise?
         super().__init__()
-        
 
         if force_cpu:
             self.device = torch.device("cpu")

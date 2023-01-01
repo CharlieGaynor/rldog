@@ -18,7 +18,8 @@ class BaseNN(nn.Module, ABC):
 
     @abstractmethod
     def forward(self, state: torch.Tensor) -> Any:
-        pass
+        ...
+
 
 class BasicNN(BaseNN):
     """
@@ -33,7 +34,8 @@ class BasicNN(BaseNN):
     def forward(self, state: torch.Tensor) -> Any:
         output = self.l1(state)
         return output
-    
+
+
 class BasicSoftMaxNN(BaseNN):
     def __init__(self, input_size: int, output_size: int) -> None:
         super().__init__()
@@ -69,7 +71,8 @@ class StandardNN(BaseNN):
         for layer in self.layers[:-1]:
             state = self.activation(layer(state))
         return self.layers[-1](state)  # type: ignore[no-any-return]
-    
+
+
 class StandardSoftmaxNN(BaseNN):
     """
     Standard
@@ -94,4 +97,3 @@ class StandardSoftmaxNN(BaseNN):
         for layer in self.layers[:-1]:
             state = self.activation(layer(state))
         return self.softmax(self.layers[-1](state))  # type: ignore[no-any-return]
-

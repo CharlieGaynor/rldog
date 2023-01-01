@@ -146,7 +146,6 @@ def test__update_epsilon(agent: DQN) -> None:
 
 def test__compute_loss(deterministic_agent: deterministic_DQN) -> None:
     da = deterministic_agent
-    da.evaluation_mode = False
     # Let the agent calculate the loss for one game
     da.mini_batch_size = 1000
     da.play_games(1)

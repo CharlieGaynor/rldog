@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import gym
 
+
 @dataclass
 class GenericConfig:
     n_actions: int
@@ -23,6 +24,7 @@ class GenericConfig:
     max_games: int
     mini_batch_size: int
     buffer_size: int
+
 
 @dataclass
 class Transition:
