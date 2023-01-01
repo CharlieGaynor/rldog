@@ -50,6 +50,7 @@ class BaseConfig(ABC):
         gamma: float = 0.99,
         lr: float = 1e-3,    
         obs_normalization_factor: float = 1,
+        clip_value: float = 1,
     ):
         if network is not None:
             self.policy_network = network
@@ -59,5 +60,6 @@ class BaseConfig(ABC):
         self.one_hot_encode = one_hot_encode
         self.lr = lr     
         self.obs_normalization_factor = obs_normalization_factor
+        self.clip_value = clip_value
         
         self.opt = torch.optim.Adam(self.policy_network.parameters(), lr=self.lr)

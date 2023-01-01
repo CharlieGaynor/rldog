@@ -14,6 +14,7 @@ class DQN_config:
     unit_price: float
     env: gym.Env
 
+    clip_value: float
     obs_normalization_factor: float
     games_to_play: int
     one_hot_encode: bool
@@ -34,6 +35,5 @@ class DQN_config:
 
 @dataclass
 class Transition:
-    obs: torch.Tensor
-    action: int
+    action_probs: torch.Tensor
     reward: float

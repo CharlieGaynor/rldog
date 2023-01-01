@@ -37,32 +37,39 @@ def probs_and_actions() -> Tuple[torch.Tensor, ...]:
 @pytest.fixture()
 def transitions() -> List[Transition]:
     return [Transition(
-        torch.tensor([random.random() for _ in range(n_obs)], dtype=torch.float32),
-        random.randint(0, 3),
+        torch.tensor(random.random()),
         random.random(),
     ) for _ in range(50)]
     
 @pytest.fixture()
-def rewards() -> torch.FloatTensor:
-    return torch.tensor([[i] for i in range(10)], dtype=torch.float32)
+def rewards() -> List[float]:
+    return [1.0, 2.0, 3.0, 4.0, 5.0]
 
-def test__calculate_actioned_probabilities(agent: Reinforce, probs_and_actions: Tuple[torch.Tensor, ...]) -> None:
-    expected = torch.tensor([[1, 5, 9]], dtype=torch.float32).squeeze()
-    assert torch.equal(agent._calculate_actioned_probabilities(*probs_and_actions), expected)
+@pytest.fixture()
+def action_probs() -> torch.FloatTensor:
+    return torch.tensor([0.5, 0.5, 0.5, 0.5, 0.5], dtype=torch.float32)
     
 def test__compute_discounted_rewards(agent: Reinforce, rewards: torch.FloatTensor) -> None:
     agent.gamma = 0
     discounted_rewards_tensor = agent._compute_discounted_rewards(rewards)
+    assert torch.equal(discounted_rewards_tensor, torch.tensor([1, 2, 3, 4, 5], dtype=torch.float32))
     
-def test__compute_loss() -> ...:
-    ...
+    agent.gamma = 1
+    discounted_rewards_tensor = agent._compute_discounted_rewards(rewards)
+    assert torch.equal(discounted_rewards_tensor, torch.tensor([15, 14, 12, 9, 5], dtype=torch.float32))
+    
+def test__compute_loss(agent: Reinforce, action_probs: torch.FloatTensor, rewards: List[float]) -> None:
+    agent.gamma = 0
+    loss = agent._compute_loss(action_probs, rewards)
+    loss_values = torch.tensor([-0.6931 * i for i in range(1,6)], dtype=torch.float32)
+    expected_loss = torch.mean(-1 * loss_values)
+    assert abs(expected_loss.item() - loss.item()) < 1e-1
+    
 
 def test__attributes_from_transitions(agent: Reinforce, transitions: List[Transition]) -> None:
-    obs, actions, rewards = agent._attributes_from_transitions(transitions)
-    assert obs.ndimension() == 2
-    assert actions.ndimension() == 2
-    assert rewards.ndimension() == 2
-
+    action_probs, rewards = agent._attributes_from_transitions(transitions)
+    assert action_probs.ndimension() == 1
+    assert isinstance(rewards, list)
 def test_play_games(agent: Reinforce) -> None:
     agent.play_games(1)
     assert agent.games_played > 0
@@ -73,7 +80,7 @@ def test_play_games(agent: Reinforce) -> None:
 def test__get_action(agent: Reinforce, state: torch.FloatTensor) -> None:
     agent.policy_network.l1.bias.data.fill_(0)  # type: ignore
     agent.policy_network.l1.weight.data.fill_(0)  # type: ignore
-    actions = [agent._get_action(state, range(agent.n_actions), evaluate=False) for _ in range(100)]
+    actions = [agent._get_action(state, range(agent.n_actions), evaluate=False)[0] for _ in range(100)]
     assert all([i in actions for i in range(n_actions)])
 
 

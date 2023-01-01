@@ -42,11 +42,11 @@ class Reinforce(BaseAgent, DQN_config):
         rewards = []
         while not terminated:
             obs = next_obs
-            action = self._get_action(obs, legal_moves)
+            action, action_probs = self._get_action(obs, legal_moves)
             next_obs_unformatted, reward, terminated, truncated, info = self.env.step(action)
             next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
             rewards.append(reward)
-            self.transitions.append(Transition(obs, action, reward))
+            self.transitions.append(Transition(action_probs, reward))
             terminated = terminated or truncated
 
         self.reward_averages.append(sum(rewards))
@@ -54,19 +54,24 @@ class Reinforce(BaseAgent, DQN_config):
     def _get_action(self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False) -> int:
         """Sample actions with softmax probabilities. If evaluating, set a min probability"""
 
-        with torch.no_grad():
-            probabilities = self.policy_network(state.to(self.device))
+        if evaluate:
+            with torch.no_grad():
+                probabilities: torch.FloatTensor = self.policy_network(state.to(self.device))
+        else:
+                probabilities: torch.FloatTensor = self.policy_network(state.to(self.device))
 
         probs = probabilities.tolist()
         if len(legal_moves) < len(probabilities):
         
             legal_probs = [probs[i] for i in legal_moves]
-
             action = random.choices(legal_moves, weights=legal_probs, k=1)[0]
         else:
-
             action = random.choices(range(len(probs)), weights=probs, k=1)[0]
-        return action
+            
+        if evaluate:
+            return action
+        else:
+            return action, probabilities[action]
 
     def _update_network(self):
         """Sample experiences, compute & back propagate loss"""
@@ -76,6 +81,8 @@ class Reinforce(BaseAgent, DQN_config):
         loss = self._compute_loss(*attributes)
         self.opt.zero_grad()
         loss.backward()
+        
+        nn.utils.clip_grad_value_(self.policy_network.parameters(), self.clip_value)
         self.opt.step()
         
         self.transitions = []
@@ -85,18 +92,13 @@ class Reinforce(BaseAgent, DQN_config):
 
     def _compute_loss(
         self,
-        obs: torch.FloatTensor,
-        actions: torch.LongTensor,
+        action_probs: torch.FloatTensor,
         rewards: List[float],
     ) -> torch.Tensor:
         """Compute loss according to REINFORCE"""
 
-        probabilities = self.policy_network(obs.to(self.device))
-        actioned_probabilities = probabilities.gather(dim=-1, index=actions.view(-1, 1)).squeeze()
-
         discounted_rewards = self._compute_discounted_rewards(rewards)
-
-        loss = torch.mean(-1.0 * torch.log(actioned_probabilities) * discounted_rewards)
+        loss = torch.mean(-1.0 * torch.log(action_probs) * discounted_rewards)
         return loss
 
     def _compute_discounted_rewards(self, rewards: List[float]) -> torch.FloatTensor:
@@ -106,39 +108,26 @@ class Reinforce(BaseAgent, DQN_config):
         
         discounted_rewards[-1] = rewards[-1]
         for idx in reversed(range(len(rewards) - 1)):
-            discounted_rewards[idx] = discounted_rewards[idx + 1] + self.gamma * rewards[idx]
+            discounted_rewards[idx] = self.gamma * discounted_rewards[idx + 1] +  rewards[idx]
 
-        mean_val = sum(discounted_rewards) / len(discounted_rewards)
-        discounted_rewards_tensor = torch.FloatTensor( [i - mean_val for i in discounted_rewards])
+        discounted_rewards_tensor = torch.FloatTensor( discounted_rewards ) #norm_rewards )
 
         return discounted_rewards_tensor
 
-    @staticmethod
-    def _calculate_actioned_probabilities(probabilities: torch.FloatTensor, actions: torch.LongTensor) -> torch.Tensor:
-        """Give me probabilities for all actions, and the actions you took.
-        I will return you only the probabilities for the actions you took
-        """
-        return probabilities[range(probabilities.shape[0]), actions.flatten()]
 
     @staticmethod
     def _attributes_from_transitions(
         transitions: List[Transition],
-    ) -> Tuple[torch.FloatTensor, torch.LongTensor, List[float]]:
+    ) -> Tuple[torch.FloatTensor, List[float]]:
         """
         Extracts, transforms (and loads, hehe) the attributes hidden in within transitions
         Each resulting tensor should have shape [batch_size, attribute size]
         """
-
-        obs_list = [transition.obs for transition in transitions]
-        actions_list = [transition.action for transition in transitions]
+        actions_list = [transition.action_probs for transition in transitions]
         rewards_list = [transition.reward for transition in transitions]
 
-        obs: torch.FloatTensor = torch.stack(obs_list, dim=0)  # type: ignore[assignment]
-        # Below might need changing when we consider non integer actions?
-        actions: torch.LongTensor = torch.tensor(actions_list, dtype=torch.long).unsqueeze(dim=-1)  # type: ignore[assignment]
-        # rewards: List[float] = torch.tensor(rewards_list).unsqueeze(dim=-1)  # type: ignore[assignment]
+        # Stack because actions_list contains a list of 0 dimensional tensors
+        # action_probs has dimensions [num_actions]
+        action_probs: torch.FloatTensor = torch.stack(actions_list, dim=0)  # type: ignore[assignment]
 
-        while obs.ndimension() < 2:
-            obs = obs.unsqueeze(dim=-1)  # type: ignore[assignment]
-
-        return obs, actions, rewards_list
+        return action_probs, rewards_list
