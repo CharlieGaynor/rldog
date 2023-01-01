@@ -87,7 +87,7 @@ class Reinforce(BaseAgent, DQN_config):
         self,
         obs: torch.FloatTensor,
         actions: torch.LongTensor,
-        rewards: torch.FloatTensor,
+        rewards: List[float],
     ) -> torch.Tensor:
         """Compute loss according to REINFORCE"""
 
@@ -99,24 +99,22 @@ class Reinforce(BaseAgent, DQN_config):
         loss = torch.mean(-1.0 * torch.log(actioned_probabilities) * discounted_rewards)
         return loss
 
-    def _compute_discounted_rewards(self, rewards: torch.FloatTensor) -> torch.FloatTensor:
+    def _compute_discounted_rewards(self, rewards: List[float]) -> torch.FloatTensor:
         """Calculate the sum_i^{len(rewards)}r * gamma^i for each time step i"""
 
-        discounted_rewards = []
+        discounted_rewards = [0] * len(rewards)
+        
+        discounted_rewards[-1] = rewards[-1]
+        for idx in reversed(range(len(rewards) - 1)):
+            discounted_rewards[idx] = discounted_rewards[idx + 1] + self.gamma * rewards[idx]
 
-        for i in range(len(rewards)):
-            total = 0
-            for j in range(i, len(rewards)):
-                total += rewards[j] * self.gamma ** (j)
-            discounted_rewards.append(total)
-
-        discounted_rewards_tensor = torch.FloatTensor(discounted_rewards)
-        discounted_rewards_tensor /= discounted_rewards_tensor.std() + 1e-3  # type: ignore
+        mean_val = sum(discounted_rewards) / len(discounted_rewards)
+        discounted_rewards_tensor = torch.FloatTensor( [i - mean_val for i in discounted_rewards])
 
         return discounted_rewards_tensor
 
     @staticmethod
-    def calculate_actioned_probabilities(probabilities: torch.FloatTensor, actions: torch.LongTensor) -> torch.Tensor:
+    def _calculate_actioned_probabilities(probabilities: torch.FloatTensor, actions: torch.LongTensor) -> torch.Tensor:
         """Give me probabilities for all actions, and the actions you took.
         I will return you only the probabilities for the actions you took
         """
@@ -125,7 +123,7 @@ class Reinforce(BaseAgent, DQN_config):
     @staticmethod
     def _attributes_from_transitions(
         transitions: List[Transition],
-    ) -> Tuple[torch.FloatTensor, torch.LongTensor, torch.FloatTensor]:
+    ) -> Tuple[torch.FloatTensor, torch.LongTensor, List[float]]:
         """
         Extracts, transforms (and loads, hehe) the attributes hidden in within transitions
         Each resulting tensor should have shape [batch_size, attribute size]
@@ -138,9 +136,9 @@ class Reinforce(BaseAgent, DQN_config):
         obs: torch.FloatTensor = torch.stack(obs_list, dim=0)  # type: ignore[assignment]
         # Below might need changing when we consider non integer actions?
         actions: torch.LongTensor = torch.tensor(actions_list, dtype=torch.long).unsqueeze(dim=-1)  # type: ignore[assignment]
-        rewards: torch.FloatTensor = torch.tensor(rewards_list).unsqueeze(dim=-1)  # type: ignore[assignment]
+        # rewards: List[float] = torch.tensor(rewards_list).unsqueeze(dim=-1)  # type: ignore[assignment]
 
         while obs.ndimension() < 2:
             obs = obs.unsqueeze(dim=-1)  # type: ignore[assignment]
 
-        return obs, actions, rewards
+        return obs, actions, rewards_list

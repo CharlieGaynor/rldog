@@ -33,6 +33,18 @@ class BasicNN(BaseNN):
     def forward(self, state: torch.Tensor) -> Any:
         output = self.l1(state)
         return output
+    
+class BasicSoftMaxNN(BaseNN):
+    def __init__(self, input_size: int, output_size: int) -> None:
+        super().__init__()
+
+        self.l1 = nn.Linear(input_size, output_size)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, state: torch.Tensor) -> Any:
+        output = self.l1(state)
+        return self.softmax(output)
+
 
 class StandardNN(BaseNN):
     """
