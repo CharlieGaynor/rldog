@@ -94,3 +94,35 @@ class BaseConfig(ABC):
 
         self.obs_normalization_factor = obs_normalization_factor
         self.clip_value = clip_value
+
+    def PPO_config(
+        self,
+        net: nn.Module,
+        old_net: nn.Module,
+        games_to_play: int = 1000,
+        one_hot_encode: bool = True,
+        gamma: float = 0.99,
+        lr: float = 1e-3,
+        obs_normalization_factor: float = 1,
+        clip_value: float = 1,
+        n_games_per_learning_batch: int = 100,
+        n_learning_episodes_per_batch: int = 100,
+        use_parallel: bool = False,
+    ) -> None:
+
+        self.net = net
+        self.old_net = old_net
+        self.lr = lr
+
+        self.opt = torch.optim.Adam(self.net.parameters(), lr=lr)
+
+        self.gamma = gamma
+        self.games_to_play = games_to_play
+        self.n_games_per_learning_batch = n_games_per_learning_batch
+        self.n_learning_episodes_per_batch = n_learning_episodes_per_batch
+        self.one_hot_encode = one_hot_encode
+
+        self.use_parallel = use_parallel
+
+        self.obs_normalization_factor = obs_normalization_factor
+        self.clip_value = clip_value
