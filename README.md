@@ -18,5 +18,4 @@ See examples for some, well, examples. Algos implemented:
 What i'm happy with
 Quality of the code, thorough tests, majority of functionality, ease of use & versatility
 
-What I don't love
-That I can't solve frozen lake using DQN if I don't OHE the state??
+Run tests with: pytest tests
