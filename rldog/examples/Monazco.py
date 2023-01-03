@@ -1,15 +1,14 @@
 import sys
 
 sys.path.append(".")
-import monazco
-from rldog.agents.DQN_based.DQN import DQN
-from rldog.configs.FrozenLake_config import FrozenLakeConfig
-from rldog.networks.networks import StandardNN
 import time
-from rldog.tools.logger import logger
+
+import monazco
+
 from rldog.agents.policy_gradients.reinforce import Reinforce
+from rldog.configs.FrozenLake_config import FrozenLakeConfig
 from rldog.networks.networks import StandardSoftmaxNN
-import logging
+from rldog.tools.logger import logger
 
 if __name__ == "__main__":
 

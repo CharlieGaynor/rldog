@@ -1,15 +1,14 @@
 import random
-import torch
 import sys
 from contextlib import closing
-
-from typing import List, Union, Dict, Tuple, Any
-from torch.multiprocessing import Pool
-from torch import nn
 from random import randint
-from rldog.dataclasses.policy_dataclasses import PPOConfig, PPOTransition
-from rldog.networks.networks import BasePPONN
+from typing import Any, Dict, List, Tuple, Union
+
 import gym
+import torch
+from torch.multiprocessing import Pool
+
+from rldog.networks.networks import BasePPONN
 
 
 class ParallelExperienceGenerator:
@@ -26,7 +25,8 @@ class ParallelExperienceGenerator:
         env: gym.Env,
         device: torch.device,
         use_parallel: bool = False,
-    ):
+        n_envs: int = 1,
+    ) -> None:
 
         self.n_actions = n_actions
         self.n_obs = n_obs
@@ -37,9 +37,10 @@ class ParallelExperienceGenerator:
         self.net.to(device)
         self.env = env
         self.use_parallel = use_parallel
+        self.n_envs = n_envs
 
         if use_parallel:
-            self.n_episodes = max(n_episodes, 61)
+            self.n_episodes = max(n_episodes, 4)  # I dont't have many cores lol
             self.net.share_memory()
         else:
             self.n_episodes = n_episodes
@@ -47,10 +48,14 @@ class ParallelExperienceGenerator:
     def play_n_episodes(self) -> Tuple[List[List[torch.Tensor]], List[List[int]], List[List[float]]]:
         """Plays n episodes in or not in parallel using the fixed policy and returns the data"""
         if self.use_parallel:
-            with closing(Pool(processes=self.n_episodes)) as pool:
+            with closing(Pool(processes=self.n_envs)) as pool:
                 episodes = pool.map(self, range(self.n_episodes))
                 pool.terminate()
-            return episodes
+            return (
+                [episode[0] for episode in episodes],
+                [episode[1] for episode in episodes],
+                [episode[2] for episode in episodes],
+            )
         else:
             all_states: List[List[torch.Tensor]] = []
             all_actions: List[List[int]] = []
@@ -62,7 +67,7 @@ class ParallelExperienceGenerator:
                 all_rewards.append(rewards)
             return all_states, all_actions, all_rewards
 
-    def __call__(self, n: int) -> List[PPOTransition]:
+    def __call__(self, n: int) -> Tuple[List[torch.Tensor], List[int], List[float]]:
         return self._play_1_episode()
 
     def _play_1_episode(self) -> Tuple[List[torch.Tensor], List[int], List[float]]:
@@ -75,7 +80,7 @@ class ParallelExperienceGenerator:
         rewards: List[float] = []
         while not terminated:
             obs = next_obs
-            action = self._get_action(obs, legal_moves)  # type: ignore[misc]
+            action = self._get_action(obs, legal_moves)
             next_obs_unformatted, reward, terminated, truncated, info = self.env.step(action)
             next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
 
@@ -96,7 +101,7 @@ class ParallelExperienceGenerator:
         """Sample actions with softmax probabilities. If evaluating, set a min probability"""
 
         with torch.no_grad():
-            probabilities: torch.FloatTensor = self.net.forward_policy(state.to(self.device))
+            probabilities: torch.Tensor = self.net.forward_policy(state.to(self.device))
 
         probs = probabilities.tolist()
         if len(legal_moves) < len(probabilities):

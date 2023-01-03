@@ -1,9 +1,8 @@
 import random
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 import pytest
 import torch
-import torch.nn as nn
 
 from rldog.agents.policy_gradients.reinforce import Reinforce
 from rldog.configs.FrozenLake_config import FrozenLakeConfig

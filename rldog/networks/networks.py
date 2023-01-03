@@ -1,5 +1,3 @@
-import torch
-import torch.nn as nn
 from abc import ABC, abstractmethod
 from typing import Any, Tuple
 
@@ -133,24 +131,24 @@ class StandardPPO(BasePPONN):
 
         self.value_head = nn.Linear(hidden_size, 1)
         self.policy_head = nn.Linear(hidden_size, output_size)
-        self.activation = nn.SiLU()
+        self.activation = nn.ReLU()
         self.sm = nn.Softmax(dim=-1)
 
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         for layer in self.layers:
             state = self.activation(layer(state))
-        val = self.value_head(state)
-        probs = self.sm(self.policy_head(state))
+        val: torch.Tensor = self.value_head(state)
+        probs: torch.Tensor = self.sm(self.policy_head(state))
         return probs, val
 
     def forward_policy(self, state: torch.Tensor) -> torch.Tensor:
         for layer in self.layers:
             state = self.activation(layer(state))
-        probs = self.sm(self.policy_head(state))
+        probs: torch.Tensor = self.sm(self.policy_head(state))
         return probs
 
     def forward_critic(self, state: torch.Tensor) -> torch.Tensor:
         for layer in self.layers:
             state = self.activation(layer(state))
-        val = self.value_head(state)
+        val: torch.Tensor = self.value_head(state)
         return val

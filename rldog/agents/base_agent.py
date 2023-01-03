@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Tuple, Union
+
+import torch
+
+from rldog.dataclasses.generic import GenericConfig
 from rldog.tools.logger import logger
 from rldog.tools.plotters import plot_results
-import torch
-from typing import List, Tuple, Any, Dict, Union
-from rldog.dataclasses.generic import Transition, GenericConfig
-from collections import deque
 
 
 class BaseAgent(ABC, GenericConfig):

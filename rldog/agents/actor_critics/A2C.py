@@ -1,10 +1,11 @@
-from typing import Any, Dict, List, Tuple, Union
+import random
+from typing import List, Tuple, Union
+
 import torch
 from torch import nn
 
-from rldog.dataclasses.actor_critic_dataclasses import ActorCriticConfig, Transition
 from rldog.agents.base_agent import BaseAgent
-import random
+from rldog.dataclasses.actor_critic_dataclasses import ActorCriticConfig, Transition
 from rldog.tools.logger import logger
 from rldog.tools.plotters import plot_ac_results
 

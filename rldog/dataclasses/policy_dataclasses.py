@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import gym
 import torch
 import torch.nn as nn
+
 from rldog.networks.networks import BasePPONN
 
 
@@ -33,8 +34,7 @@ class PPOConfig:
     net: BasePPONN
     old_net: BasePPONN
     lr: float
-    actor_opt: torch.optim.Optimizer
-    critic_opt: torch.optim.Optimizer
+    opt: torch.optim.Optimizer
 
     gamma: float
     games_to_play: int
@@ -47,16 +47,10 @@ class PPOConfig:
     clip_value: float
 
     use_parallel: bool
+    n_envs: int
 
 
 @dataclass
 class Transition:
     action_probs: torch.Tensor
-    reward: float
-
-
-@dataclass
-class PPOTransition:
-    obs: torch.Tensor
-    action: int
     reward: float

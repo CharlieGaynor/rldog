@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+
 import torch
 import torch.nn as nn
-from rldog.networks.networks import BasicNN
+
+from rldog.networks.networks import BasicNN, BasicSoftMaxNN
 
 
 class BaseConfig(ABC):
@@ -25,8 +27,10 @@ class BaseConfig(ABC):
         epsilon_grace_period: float = 0.5,
         obs_normalization_factor: float = 1,
     ) -> None:
-        if network is not None:
+        if network is None:
             self.policy_network = BasicNN(input_size=self.n_obs, output_size=self.n_actions)
+        else:
+            self.policy_network = network  # type: ignore[assignment]
 
         self.games_to_play = games_to_play
         self.one_hot_encode = one_hot_encode
@@ -45,7 +49,7 @@ class BaseConfig(ABC):
 
     def reinforce_config(
         self,
-        network: nn.Module = None,
+        network: nn.Module,
         games_to_play: int = 1000,
         one_hot_encode: bool = True,
         gamma: float = 0.99,
@@ -53,8 +57,11 @@ class BaseConfig(ABC):
         obs_normalization_factor: float = 1,
         clip_value: float = 1,
     ) -> None:
-        if network is not None:
-            self.policy_network = BasicNN(input_size=self.n_obs, output_size=self.n_actions)
+
+        if network is None:
+            self.policy_network = BasicSoftMaxNN(input_size=self.n_obs, output_size=self.n_actions)
+        else:
+            self.policy_network = network  # type: ignore[assignment]
 
         self.gamma = gamma
         self.games_to_play = games_to_play
@@ -108,6 +115,7 @@ class BaseConfig(ABC):
         n_games_per_learning_batch: int = 100,
         n_learning_episodes_per_batch: int = 100,
         use_parallel: bool = False,
+        n_envs: int = 1,
     ) -> None:
 
         self.net = net
@@ -123,6 +131,7 @@ class BaseConfig(ABC):
         self.one_hot_encode = one_hot_encode
 
         self.use_parallel = use_parallel
+        self.n_envs = n_envs
 
         self.obs_normalization_factor = obs_normalization_factor
         self.clip_value = clip_value

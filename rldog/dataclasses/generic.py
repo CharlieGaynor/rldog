@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
+import gym
 import torch
 import torch.nn as nn
-import gym
 
 
 @dataclass

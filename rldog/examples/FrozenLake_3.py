@@ -6,7 +6,7 @@ import time
 
 from rldog.agents.actor_critics.A2C import A2C
 from rldog.configs.FrozenLake_config import FrozenLakeConfig
-from rldog.networks.networks import StandardSoftmaxNN, StandardNN
+from rldog.networks.networks import StandardNN, StandardSoftmaxNN
 from rldog.tools.logger import logger
 
 if __name__ == "__main__":

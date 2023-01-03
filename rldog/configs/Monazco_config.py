@@ -1,9 +1,6 @@
 import gym
-import torch
-import torch.nn as nn
 
 from rldog.configs.base_config import BaseConfig
-from rldog.networks.networks import BasicNN
 
 
 class MonazcoConfig(BaseConfig):

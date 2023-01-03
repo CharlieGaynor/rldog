@@ -1,11 +1,11 @@
-from collections import deque
-from typing import Any, Dict, List, Tuple, Union, overload
+import random
+from typing import List, Tuple, Union
+
 import torch
 from torch import nn
 
-from rldog.dataclasses.policy_dataclasses import ReinforceConfig, Transition
 from rldog.agents.base_agent import BaseAgent
-import random
+from rldog.dataclasses.policy_dataclasses import ReinforceConfig, Transition
 
 
 class Reinforce(BaseAgent, ReinforceConfig):

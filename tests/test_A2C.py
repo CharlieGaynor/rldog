@@ -1,14 +1,13 @@
 import random
-from typing import Any, List, Tuple
+from typing import List
 
 import pytest
 import torch
-import torch.nn as nn
 
 from rldog.agents.actor_critics.A2C import A2C
 from rldog.configs.FrozenLake_config import FrozenLakeConfig
-from rldog.dataclasses.actor_critic_dataclasses import Transition, ActorCriticConfig
-from rldog.networks.networks import BasicSoftMaxNN, BasicNN
+from rldog.dataclasses.actor_critic_dataclasses import Transition
+from rldog.networks.networks import BasicNN, BasicSoftMaxNN
 
 n_obs = 16
 n_actions = 4

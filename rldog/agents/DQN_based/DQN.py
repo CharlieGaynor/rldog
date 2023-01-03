@@ -1,12 +1,12 @@
 import random
 from collections import deque
-from typing import Any, Dict, List, Tuple, Union
+from typing import List, Tuple
 
 import torch
 
+from rldog.agents.base_agent import BaseAgent
 from rldog.dataclasses.DQN_dataclasses import DQNConfig
 from rldog.dataclasses.generic import Transition
-from rldog.agents.base_agent import BaseAgent
 
 # at the minute using epislon greedy - could generalise this out into a seperate class
 # priority is having mini batches
