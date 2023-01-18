@@ -17,13 +17,15 @@ from rldog.tools.ppo_experience_generator import ParallelExperienceGenerator
 
 class PPO(PPOConfig):
     """
-    blah blah blah
+    Proximal Policy Optimisation. This is has capabality to use multiple workers in parallel.
+    The actor & critic do share networks.
 
-            # Then try to test and see where it fails. Once it can solve frozen lake with no slippery,
-            # write unit tests. After that, try to compare it to other PPO benchmarks
+    :params:
+        config (PPOConfig): Necessary configuration for the agent to run
+        force_cpu (bool = False): Use cpu for torch, whether there is access to a gpu or not
     """
 
-    def __init__(self, config: BaseConfig, force_cpu: bool = False) -> None:
+    def __init__(self, config: PPOConfig, force_cpu: bool = False) -> None:
 
         self.__dict__.update(config.__dict__)
 
@@ -61,8 +63,14 @@ class PPO(PPOConfig):
         model_directory: str = "",
     ) -> None:
         """
-        Play {games_to_play} games. Give periodic logs if you ike (log_things), Plot the training results and loss if you like (plot), save the model at the end or at checkpoints (every 1/5th of training ISH).
-        The model directory should contain a filename using the convention {ENV_PPO_inputSize_outputSize_hiddenLayers_hiddenSize_date} for ease of loading later.
+        Play {games_to_play} games.
+
+        ::params::
+        log_things (bool): Give periodic logs on the progress
+        plot (bool): Plot the training results and loss at the end
+        save_model_at_checkpoints (bool): Save the model at the end or at checkpoints
+        save_model_at_end (bool): ^^
+        model_directory (str): Where should we save the model?
         """
         if model_directory == "" and (save_model_at_end or save_model_at_checkpoints):
             logger.warning("Can't save the model as you didn't specifiy a model directory :(")
@@ -102,7 +110,17 @@ class PPO(PPOConfig):
         if plot:
             plot_results(self.rewards, loss=self.losses, title="PPO training rewards & loss")
 
-    def evaluate_games(self, games_to_evaluate: int, plot: bool = True, log_things: bool = True) -> None:
+    def evaluate_games(
+        self, games_to_evaluate: int, plot: bool = True, log_things: bool = True
+    ) -> None:
+        """
+        Evaluate the agent for {games_to_evaluate} games.
+
+        ::params::
+        games_to_evaluate (int): How many games to evaluate the agents performance for?
+        log_things (bool): Give periodic logs on the progress
+        plot (bool): Plot the training results and loss at the end
+        """
         evaluation_generator = ParallelExperienceGenerator(
             self.n_actions,
             self.n_obs,
@@ -125,7 +143,9 @@ class PPO(PPOConfig):
                 action_counts = {i: 0 for i in range(self.n_actions)}
                 action_counts.update(dict(Counter(actions)))
                 logger.info(f"Evaluation action_counts = {action_counts}")
-                logger.info(f"Average total reward: {sum(evaluation_rewards) / len(evaluation_rewards)}")
+                logger.info(
+                    f"Average total reward: {sum(evaluation_rewards) / len(evaluation_rewards)}"
+                )
             if plot:
                 plot_results(test_rewards=evaluation_rewards)
 
@@ -134,6 +154,7 @@ class PPO(PPOConfig):
         torch.save(self.net.state_dict(), model_directory)
 
     def _step(self) -> None:
+        """Generate a bunch of data using multiple workers, and learn from it"""
         all_states, all_actions, all_rewards = self.experience_generator.play_n_episodes()
         self.rewards.extend([sum(game_rewards) for game_rewards in all_rewards])
         # Now convert all_states & all actions from List[List[something]] to List[torch.Tensor]
@@ -144,9 +165,12 @@ class PPO(PPOConfig):
         self._equalise_policies()
 
     def _policy_learn(
-        self, tensor_states: torch.Tensor, all_actions: List[List[int]], all_rewards: List[List[float]]
+        self,
+        tensor_states: torch.Tensor,
+        all_actions: List[List[int]],
+        all_rewards: List[List[float]],
     ) -> None:
-        """A learning iteration for the policy"""
+        """Learn from the data we've collected, {self.n_learning_episodes_per_batch} many times"""
         all_discounted_returns = self._calculate_all_discounted_returns(all_rewards)
 
         with torch.no_grad():  # Maybe need this, maybe not
@@ -157,15 +181,21 @@ class PPO(PPOConfig):
 
         for _ in range(self.n_learning_episodes_per_batch):
             probs, critic_values = self.net.forward(tensor_states)
-            ratio_of_probs = self._calculate_ratio_of_policy_probabilities(probs, all_actions, old_actioned_probs)
-            loss = self._compute_losses(ratio_of_probs, all_discounted_returns, torch.squeeze(critic_values), probs)
+            ratio_of_probs = self._calculate_ratio_of_policy_probabilities(
+                probs, all_actions, old_actioned_probs
+            )
+            loss = self._compute_losses(
+                ratio_of_probs, all_discounted_returns, torch.squeeze(critic_values), probs
+            )
             self._take_policy_new_optimisation_step(loss)
 
     def _calculate_ratio_of_policy_probabilities(
         self, probs: torch.Tensor, all_actions: List[List[int]], old_actioned_probs: torch.Tensor
     ) -> torch.Tensor:
 
-        actioned_probs = probs[range(probs.shape[0]), [action for episode in all_actions for action in episode]]
+        actioned_probs = probs[
+            range(probs.shape[0]), [action for episode in all_actions for action in episode]
+        ]
         ratio_of_policy_probabilities = actioned_probs / (old_actioned_probs + 1e-8)
         return ratio_of_policy_probabilities
 
@@ -178,7 +208,9 @@ class PPO(PPOConfig):
     ) -> torch.Tensor:
         """Compute PPO loss"""
 
-        ratio_of_probabilities = torch.clamp(input=ratio_of_probabilities, min=-sys.maxsize, max=sys.maxsize)
+        ratio_of_probabilities = torch.clamp(
+            input=ratio_of_probabilities, min=-sys.maxsize, max=sys.maxsize
+        )
         # Can Change the below to introduce an advantage function
         advantage = discounted_rewards - critic_values  # .detach()
         # Clipped surrogate loss

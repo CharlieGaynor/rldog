@@ -1,10 +1,10 @@
 # PyRL
-Environment Agnostic RL algorithm implementations using Pytorch. High quality code, typehints, thorough tests, examples.
-Also uses minibatches correctly, which most public libraries don't implement.
+Environment Agnostic RL algorithm implementations using Pytorch.
 
-See examples for some, well, examples. 
+Uses minibatches correctly and has the capability to use a set of allowed moves (legal moves), which most public libraries don't implement.
 
-What i'm happy with
-Quality of the code, thorough tests, majority of functionality, ease of use & versatility
+High quality code, Typehints, unit tests, examples.
+
+See examples dir for some, well, examples. 
 
 Run tests with: pytest tests

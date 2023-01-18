@@ -45,7 +45,7 @@ class BaseAgent(ABC, GenericConfig):
             plot_results(total_rewards, title="Training Graph", loss=self.training_loss)
 
     def evaluate_games(self, games_to_evaluate: int, plot: bool = True) -> None:
-        """Evaluate games"""
+        """Evaluate the agent for {games_to_evaluate} many games. Logs info and optionally plots"""
 
         for _ in range(games_to_evaluate):
             self._evaluate_game()
@@ -60,8 +60,8 @@ class BaseAgent(ABC, GenericConfig):
 
     def _evaluate_game(self) -> None:
         """
-        Evaluates the models performance for one game. Seperate function as this
-        runs quicker, at the price of not storing transitions.
+        Evaluates the models performance for one game. 
+        This is a seperate function as it runs quicker due to not storing transitions.
 
         Runs when self.evaluate_games() is called
         """
@@ -95,7 +95,14 @@ class BaseAgent(ABC, GenericConfig):
     def _format_obs(
         self, obs: Union[float, int, Tuple, List], info: Dict[Any, Any]
     ) -> Tuple[torch.Tensor, List[int] | range]:
-        """Allow obs to be passed into pytorch model"""
+        """
+        Allow obs to be passed into pytorch model
+        
+        :returns:
+            obs (torch.Tensor) and the moves that are legal
+        """
+
+        
         if info.get("legal_moves", False):
             obs, legal_moves = obs  # type: ignore[misc]
         else:

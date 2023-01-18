@@ -12,12 +12,19 @@ from rldog.tools.plotters import plot_ac_results
 
 class A2C(BaseAgent, ActorCriticConfig):
     """
-    Advantage Actor Critic. This is just one worker for now. The actor & critic don't share networks as
-    having seperate networks gave better results. The literature is also unclear on which is better.
+    Advantage Actor Critic. This is just one worker for now. The actor & critic don't share networks as 
+    the literature is unclear on which is better. 
+    
+    FYI thr PPO implementation has parallel workers and the actor/critic share
+    network
+
+    :params:
+        config (ActorCriticConfig): Necessary configuration for the agent to run
+        force_cpu (bool = False): Use cpu for torch, whether there is access to a gpu or not
     """
 
     def __init__(self, config: ActorCriticConfig, force_cpu: bool = False) -> None:
-
+        """Update self.__dict__ with the given config, and initialise device"""
         self.__dict__.update(config.__dict__)
         super().__init__()
 
@@ -33,7 +40,7 @@ class A2C(BaseAgent, ActorCriticConfig):
 
     def play_games(self, games_to_play: int = 0, verbose: bool = False) -> None:
         """
-        Play the games, updating at each step the network if not self.evaluation_mode
+        Play the games, updating the network at each step (if we're not in self.evaluation_mode)
         Verbose mode shows some stats at the end of the training, and a graph.
         """
         games_to_play = self.games_to_play if games_to_play == 0 else games_to_play
@@ -56,9 +63,8 @@ actor loss = {mean(self.actor_loss[-game_frac: ]):.3f}, critic_loss = {mean(self
 
     def _play_game(self) -> None:
         """
-        Interact with the environment until 'terminated'
-        store transitions in self.transitions & updates
-        epsilon after each game has finished
+        Interact with the environment until 'terminated' or 'truncated'
+        store transitions in self.transitions for training after the epsiode is finished
         """
         next_obs_unformatted, info = self.env.reset()
         next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
@@ -79,7 +85,7 @@ actor loss = {mean(self.actor_loss[-game_frac: ]):.3f}, critic_loss = {mean(self
     def _get_action(  # type: ignore[override]
         self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False
     ) -> Union[int, Tuple[int, torch.Tensor]]:
-        """Sample actions with softmax probabilities. If evaluating, set a min probability"""
+        """Sample actions with softmax probabilities. If legal moves are given, only select one of them"""
 
         if evaluate:
             with torch.no_grad():
@@ -130,6 +136,7 @@ actor loss = {mean(self.actor_loss[-game_frac: ]):.3f}, critic_loss = {mean(self
     def _compute_losses(
         self, action_probs: torch.FloatTensor, rewards: List[float], critic_values: torch.FloatTensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Compute actor and critic loss and return them both seperately, as they're not sharing a network"""
 
         discounted_rewards = self._compute_discounted_rewards(rewards)
 
@@ -156,8 +163,7 @@ actor loss = {mean(self.actor_loss[-game_frac: ]):.3f}, critic_loss = {mean(self
         self, discounted_rewards: torch.FloatTensor, critic_values: torch.FloatTensor
     ) -> torch.Tensor:
         """Simply the difference between critic value and discounted rewards"""
-        # if sum(discounted_rewards) > 1e-3:
-        #     logger.debug(f'rewards, critic values: {discounted_rewards}, {critic_values}')
+
         logger.debug(f"critic loss {torch.sum((discounted_rewards - critic_values) ** 2)}")
         return torch.sum((discounted_rewards - critic_values) ** 2)
 

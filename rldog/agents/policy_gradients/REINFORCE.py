@@ -10,12 +10,16 @@ from rldog.dataclasses.policy_dataclasses import ReinforceConfig, Transition
 
 class Reinforce(BaseAgent, ReinforceConfig):
     """
-    blah blah blah
+    Reinforce Agent, which uses a policy network to output probabilities of each action,
+    and draws actions using these probabilities. Train using loss ~ log(probs) * discounted rewards
 
+    :params:
+        config (ReinforceConfig): Necessary configuration for the agent to run
+        force_cpu (bool = False): Use cpu for torch, whether there is access to a gpu or not
     """
 
     def __init__(self, config: ReinforceConfig, force_cpu: bool = False) -> None:
-
+        """Update self.__dict__ with the given config, and initialise device"""
         self.__dict__.update(config.__dict__)
         super().__init__()
 
@@ -28,9 +32,8 @@ class Reinforce(BaseAgent, ReinforceConfig):
 
     def _play_game(self) -> None:
         """
-        Interact with the environment until 'terminated'
-        store transitions in self.transitions & updates
-        epsilon after each game has finished
+        Interact with the environment until 'terminated' or 'truncated'
+        store transitions in self.transitions for training after the epsiode is finished
         """
         next_obs_unformatted, info = self.env.reset()
         next_obs, legal_moves = self._format_obs(next_obs_unformatted, info)
@@ -50,7 +53,7 @@ class Reinforce(BaseAgent, ReinforceConfig):
     def _get_action(  # type: ignore[override]
         self, state: torch.Tensor, legal_moves: List[int] | range, evaluate: bool = False
     ) -> Union[int, Tuple[int, torch.Tensor]]:
-        """Sample actions with softmax probabilities. If evaluating, set a min probability"""
+        """Sample actions with softmax probabilities. If passing legal moves, then only select a legal move"""
 
         if evaluate:
             with torch.no_grad():
@@ -110,7 +113,7 @@ class Reinforce(BaseAgent, ReinforceConfig):
         return loss
 
     def _compute_discounted_rewards(self, rewards: List[float]) -> torch.FloatTensor:
-        """Calculate the sum_i^{len(rewards)}r * gamma^i for each time step i"""
+        """Calculate the sum_i^len(rewards){r * gamma^i} for each time step i"""
 
         discounted_rewards = [0.0] * len(rewards)
 
